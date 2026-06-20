@@ -1,0 +1,44 @@
+name: Build iOS IPA
+on: [push, workflow_dispatch]
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          brew install autoconf automake libtool pkg-config
+          pip install --upgrade pip
+          pip install kivy-ios
+
+      - name: Build Kivy and Python Recipes
+        run: |
+          toolchain build python3 kivy
+
+      - name: Create Xcode Project
+        run: |
+          toolchain create "MyPingPong" .
+
+      - name: Compile and Export APP
+        run: |
+          xcodebuild -project mypingpong-ios/mypingpong.xcodeproj -configuration Debug -sdk iphoneos
+
+      - name: Package to IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r mypingpong-ios/build/Debug-iphoneos/mypingpong.app build/Payload/
+          cd build && zip -r ../MyPingPong.ipa Payload/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-IPA-Package
+          path: MyPingPong.ipa
